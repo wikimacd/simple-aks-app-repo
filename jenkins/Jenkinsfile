@@ -1,0 +1,83 @@
+pipeline {
+  agent any
+  environment {
+    IMAGE = "myregistry.azurecr.io/simple-aks-app:${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
+    REGISTRY = "myregistry.azurecr.io"
+    HELM_RELEASE = "simple-app"
+    HELM_NAMESPACE = "app-ns"
+    KUBE_CONTEXT = "azure-aks-context"
+  }
+  options {
+    skipDefaultCheckout(false)
+    timestamps()
+  }
+  stages {
+    stage('Prepare') {
+      steps {
+        checkout scm
+        script {
+          echo "Branch: ${env.BRANCH_NAME} (changeRequest? ${env.CHANGE_ID})"
+        }
+      }
+    }
+    stage('PR Validation') {
+      when { changeRequest() }
+      steps {
+        echo "Running PR checks..."
+        sh 'npm ci'
+        sh 'npm run lint'
+      }
+    }
+    stage('Build & Static Analysis') {
+      when { expression { return !env.CHANGE_ID } }
+      parallel {
+        stage('Static Analysis - SonarQube') {
+          steps {
+            echo 'Run SonarQube here (requires scanner setup)'
+          }
+        }
+        stage('Build Image') {
+          steps {
+            sh 'docker build -t ${IMAGE} app/.'
+            echo 'Push image to registry here'
+          }
+        }
+      }
+    }
+    stage('Reusable Steps') {
+      steps {
+        script {
+          echo "Reusable pipeline hook (shared library) - optional"
+        }
+      }
+    }
+    stage('Deploy to Staging') {
+      when { branch 'develop' }
+      steps {
+        sh 'echo helm upgrade --install staging ...'
+      }
+    }
+    stage('Approval: Deploy to Prod') {
+      when { branch 'main' }
+      steps {
+        script {
+          timeout(time: 1, unit: 'HOURS') {
+            input message: "Approve deployment to PROD?", ok: "Deploy"
+          }
+        }
+      }
+    }
+    stage('Deploy to Prod') {
+      when { branch 'main' }
+      steps {
+        sh 'echo helm upgrade --install prod ...'
+      }
+      post {
+        failure { echo "Deployment failed — rollback required" }
+      }
+    }
+  }
+  post {
+    always { cleanWs() }
+  }
+}

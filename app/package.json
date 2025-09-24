@@ -1,0 +1,12 @@
+{
+  "name": "simple-aks-app",
+  "version": "0.1.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "lint": "npx eslint . || true"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0"
+  }
+}
