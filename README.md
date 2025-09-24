@@ -9,3 +9,4 @@ This repo demonstrates:
 - AKS deployment with Helm, HPA, PVC, rollback
 
 See `jenkins/Jenkinsfile`, `helm-chart/`, and `vars/ciPipeline.groovy`.
+- Trying to work it out
